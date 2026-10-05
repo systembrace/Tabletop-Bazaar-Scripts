@@ -76,9 +76,6 @@ func set_main_selected(id, obj_path):
 
 @rpc("any_peer", "call_local", "reliable")
 func start_drag(id):
-	print(multiplayer.get_unique_id())
-	print(id)
-	print()
 	selected_z_order=selected[id].duplicate()
 	selected_z_order.sort_custom(z_sort)
 	for object in selected_z_order:
@@ -113,7 +110,7 @@ func _input(event: InputEvent) -> void:
 				if not highlighted in selected[self_id]:
 					rpc("select",self_id,highlighted.get_path())
 				highlighted.rpc("select",self_id)
-				main_selected[self_id]=highlighted
+				rpc("set_main_selected",self_id,highlighted.get_path())
 		elif event.is_action_released("select"):
 			pressed_timer.stop()
 			if dragging[self_id]:
@@ -124,3 +121,4 @@ func _input(event: InputEvent) -> void:
 				highlighted.outline()
 				if not highlighted in selected[self_id]:
 					rpc("select",self_id,highlighted.get_path())
+				highlighted.rpc("select",self_id)

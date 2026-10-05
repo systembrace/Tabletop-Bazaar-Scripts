@@ -110,9 +110,6 @@ func set_z():
 			used_layers.append(z)
 
 func _process(delta: float) -> void:
-	if multiplayer.get_unique_id()==1 and selected_by!=1:
-		print(Mouse.dragging[selected_by])
-		print(Mouse.mouse_position[selected_by])
 	if picked_up and Mouse.dragging[selected_by]:
 		if self==Mouse.main_selected[selected_by]:
 			velocity=to_local(Mouse.mouse_position[selected_by])/delta*speed
