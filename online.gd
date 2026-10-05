@@ -52,6 +52,7 @@ func _register_player(new_player_info):
 @rpc("call_local", "reliable")
 func load_game(game_scene_path):
 	print("Loading game...")
+	Mouse.set_players()
 	get_tree().change_scene_to_packed(load(game_scene_path))
 
 #@rpc("any_peer", "call_local", "reliable")

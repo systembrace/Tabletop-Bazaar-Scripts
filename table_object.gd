@@ -3,6 +3,7 @@ class_name TableObject
 
 var table: Tabletop
 var selected=false
+var selected_by=1
 var picked_up=false
 var speed=0
 var under: Dictionary[TableObject,int] = {}
@@ -31,7 +32,7 @@ func highlight(do_highlight=true):
 	sprite.material.set_shader_parameter("tint_amt",amt)
 
 func mouse_over():
-	if selected and Mouse.dragging:
+	if selected and Mouse.dragging[selected_by]:
 		return
 	Mouse.add_over(self)
 
@@ -44,11 +45,15 @@ func outline(do_outline=true):
 		width=32.0
 	sprite.material.set_shader_parameter("outline_width",width)
 
-func select():
+@rpc("any_peer", "call_local", "reliable")
+func select(id):
 	selected=true
+	selected_by=id
 
+@rpc("any_peer", "call_local", "reliable")
 func deselect():
 	selected=false
+	selected_by=1
 	outline(false)
 
 @rpc("any_peer", "call_local", "reliable")
@@ -105,12 +110,15 @@ func set_z():
 			used_layers.append(z)
 
 func _process(delta: float) -> void:
-	if picked_up and Mouse.dragging:
-		if self==Mouse.main_selected:
-			velocity=to_local(get_global_mouse_position())/delta*speed
+	if multiplayer.get_unique_id()==1 and selected_by!=1:
+		print(Mouse.dragging[selected_by])
+		print(Mouse.mouse_position[selected_by])
+	if picked_up and Mouse.dragging[selected_by]:
+		if self==Mouse.main_selected[selected_by]:
+			velocity=to_local(Mouse.mouse_position[selected_by])/delta*speed
 			speed=move_toward(speed,1.0,delta*1.5)
 		else:
-			velocity=Mouse.main_selected.velocity
+			velocity=Mouse.main_selected[selected_by].velocity
 
 func _physics_process(_delta: float) -> void:
 	move_and_slide()

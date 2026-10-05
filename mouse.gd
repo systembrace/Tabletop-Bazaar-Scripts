@@ -1,19 +1,40 @@
 extends Node
 
+var mouse_position: Dictionary[int,Vector2] = {}
+var dragging: Dictionary[int,bool] = {}
+var selected: Dictionary[int,Array] = {}
+var main_selected: Dictionary[int,TableObject] = {}
+
 var highlighted: TableObject
-var over: Array[TableObject] = []
-var selected: Array[TableObject] = []
-var selected_z_order: Array[TableObject] = []
-var main_selected: TableObject
-var dragging=false
+var over: Array = []
+var selected_z_order: Array = []
 @onready var pressed_timer: Timer = Timer.new()
 
 func _ready() -> void:
+	set_players()
 	Input.use_accumulated_input=false
 	pressed_timer.wait_time=0.15
 	pressed_timer.one_shot=true
-	pressed_timer.timeout.connect(start_drag)
 	add_child(pressed_timer)
+
+func set_players():
+	if pressed_timer.timeout.is_connected(rpc):
+		pressed_timer.timeout.disconnect(rpc)
+	for peer_id in dragging.keys():
+		if not peer_id in multiplayer.get_peers():
+			multiplayer.multiplayer_peer.disconnect_peer(peer_id) 
+	for peer_id in multiplayer.get_peers():
+		if not peer_id in dragging.keys():
+			mouse_position[peer_id]=Vector2.ZERO
+			dragging[peer_id]=false
+			selected[peer_id]=[]
+			main_selected[peer_id]=null
+	var self_id=multiplayer.get_unique_id()
+	mouse_position[self_id]=Vector2.ZERO
+	dragging[self_id]=false
+	selected[self_id]=[]
+	main_selected[self_id]=null
+	pressed_timer.timeout.connect(rpc.bind("start_drag",self_id))
 
 func add_over(object):
 	if highlighted:
@@ -34,47 +55,72 @@ func remove_over(object):
 		highlighted=over[0]
 		highlighted.highlight()
 
-func clear_selected():
-	for object in selected:
+@rpc("any_peer", "call_local", "reliable")
+func clear_selected(id):
+	for object in selected[id]:
 		object.deselect()
-	selected.clear()
+	selected[id].clear()
 
 func z_sort(o_a, o_b):
 	return o_a.z_index<o_b.z_index
 
-func start_drag():
-	selected_z_order=selected.duplicate()
+@rpc("any_peer", "call_local", "reliable")
+func select(id, obj_path):
+	var obj=Global.tabletop.get_node(obj_path)
+	selected[id].append(obj)
+
+@rpc("any_peer", "call_local", "reliable")
+func set_main_selected(id, obj_path):
+	var obj=Global.tabletop.get_node(obj_path)
+	main_selected[id]=obj
+
+@rpc("any_peer", "call_local", "reliable")
+func start_drag(id):
+	print(multiplayer.get_unique_id())
+	print(id)
+	print()
+	selected_z_order=selected[id].duplicate()
 	selected_z_order.sort_custom(z_sort)
 	for object in selected_z_order:
 		object.rpc("pick_up")
-	dragging=true
+	dragging[id]=true
 
-func stop_drag():
-	dragging=false
-	if len(selected)==0:
+@rpc("any_peer", "call_local", "reliable")
+func stop_drag(id):
+	dragging[id]=false
+	if len(selected[id])==0:
 		return
-	clear_selected()
+	rpc("clear_selected",id)
 	for object in selected_z_order:
 		object.rpc("put_down")
 
+@rpc("any_peer", "call_local", "reliable")
+func set_mouse_position(id,position):
+	mouse_position[id]=position
+
 func _input(event: InputEvent) -> void:
-	if event.is_action("select"):
-		if len(selected)>0 and len(over)==0 and !dragging:
-			clear_selected()
+	if !Global.tabletop:
+		return
+	var self_id=multiplayer.get_unique_id()
+	if event is InputEventMouseMotion:
+		rpc("set_mouse_position",self_id,event.global_position)
+	elif event.is_action("select"):
+		if len(selected[self_id])>0 and len(over)==0 and !dragging[self_id]:
+			rpc("clear_selected",self_id)
 		if event.is_action_pressed("select"):
 			pressed_timer.start()
 			if highlighted:
-				if not highlighted in selected:
-					selected.append(highlighted)
-				highlighted.select()
-				main_selected=highlighted
+				if not highlighted in selected[self_id]:
+					rpc("select",self_id,highlighted.get_path())
+				highlighted.rpc("select",self_id)
+				main_selected[self_id]=highlighted
 		elif event.is_action_released("select"):
 			pressed_timer.stop()
-			if dragging:
-				stop_drag()
-			elif len(selected)>0 and highlighted:
+			if dragging[self_id]:
+				rpc("stop_drag",self_id)
+			elif len(selected[self_id])>0 and highlighted:
 				if !Input.is_action_pressed("ctrl"):
-					clear_selected()
+					rpc("clear_selected",self_id)
 				highlighted.outline()
-				if not highlighted in selected:
-					selected.append(highlighted)
+				if not highlighted in selected[self_id]:
+					rpc("select",self_id,highlighted.get_path())
