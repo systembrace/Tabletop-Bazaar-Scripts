@@ -14,16 +14,7 @@ func _ready():
 		return
 	super._ready()
 
-func pick_up():
-	set_collision_layer_value(2,false)
-	super.pick_up()
-
-func put_down():
-	set_collision_layer_value(2,true)
-	super.put_down()
-
 func _process(delta):
 	if Engine.is_editor_hint():
 		return
-	super._process(delta)
 	$Label.text=str(z_index)

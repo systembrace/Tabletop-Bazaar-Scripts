@@ -19,7 +19,7 @@ bool hasContraryNeighbour(vec2 uv, vec2 texture_pixel_size, sampler2D tex, float
 		for (float y = -ceil(offset); y <= ceil(offset); y++) {
 			vec2 xy = uv + texture_pixel_size * vec2(x, y);
 
-			if ((xy == clamp(xy, vec2(0.0), vec2(1.0)) && texture(tex, xy).a > 0.0)) {
+			if ((xy == clamp(xy, vec2(0.0), vec2(1.0)) && texture(tex, xy).a == 1.0)) {
 				return true;
 			}
 		}
